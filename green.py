@@ -999,3 +999,481 @@ def render_advanced_login():
             if submit:
                 if authenticate_user(username, password, user_type):
                     st.success(f"Welcome back, {st.session_state.user_display_name}!")
+
+# Add these missing functions after the existing code
+
+def render_dashboard():
+    """Render main dashboard"""
+    render_advanced_header()
+    render_advanced_metrics()
+    
+    st.markdown("---")
+    
+    # Market Overview
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("📈 Platform Performance")
+        
+        # Generate sample time series data
+        dates = pd.date_range(start='2024-01-01', periods=100, freq='D')
+        capital_mobilized = 2.8 + np.cumsum(np.random.randn(100) * 0.1)
+        projects_funded = 189 + np.cumsum(np.random.randn(100) * 2)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=dates, y=capital_mobilized, name='Capital Mobilized ($B)',
+            line=dict(color='#2E7D32', width=3)
+        ))
+        fig.add_trace(go.Scatter(
+            x=dates, y=projects_funded/100, name='Projects Funded (scaled)',
+            line=dict(color='#1976D2', width=3)
+        ))
+        
+        fig.update_layout(
+            title="Platform Growth Trajectory",
+            xaxis_title="Date",
+            yaxis_title="Value",
+            height=400,
+            showlegend=True,
+            template="plotly_white"
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader("🎯 Quick Actions")
+        
+        st.markdown("""
+        <div class="info-box">
+            <h4>Available Actions</h4>
+            <ul>
+                <li>Browse Climate Projects</li>
+                <li>Trade Carbon Credits</li>
+                <li>Access Blended Finance</li>
+                <li>View Portfolio Performance</li>
+                <li>Generate ESG Reports</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("🚀 Browse Projects", use_container_width=True):
+                st.session_state.page = "Projects"
+        with col_b:
+            if st.button("🌍 Carbon Trading", use_container_width=True):
+                st.session_state.page = "Carbon Trading"
+        
+        if st.button("📊 View Analytics", use_container_width=True):
+            st.session_state.page = "Analytics"
+        if st.button("🛡️ De-risking", use_container_width=True):
+            st.session_state.page = "De-risking"
+    
+    # Recent Activity Feed
+    st.markdown("---")
+    st.subheader("📰 Recent Platform Activity")
+    
+    activities = [
+        {"time": "2 hours ago", "action": "New Solar Project Listed", "value": "$45M", "location": "Gujarat"},
+        {"time": "4 hours ago", "action": "Carbon Credits Traded", "value": "5,000 tons", "location": "Maharashtra"},
+        {"time": "6 hours ago", "action": "Project Funded", "value": "$23M", "location": "Tamil Nadu"},
+        {"time": "1 day ago", "action": "Green Bond Issued", "value": "$100M", "location": "Karnataka"},
+        {"time": "2 days ago", "action": "ESG Verification Complete", "value": "Score: 92", "location": "Rajasthan"}
+    ]
+    
+    for activity in activities[:5]:
+        st.markdown(f"""
+        <div style="background: #F5F5F5; padding: 0.5rem 1rem; margin: 0.5rem 0; border-radius: 8px; border-left: 3px solid #2E7D32;">
+            <strong>{activity['action']}</strong> - {activity['value']} | {activity['location']} <span style="color: #666; float: right;">{activity['time']}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+def render_projects():
+    """Render Projects Marketplace"""
+    st.subheader("🌱 Climate Projects Marketplace")
+    
+    if not st.session_state.projects:
+        st.session_state.projects = generate_advanced_mock_projects()
+    
+    # Filters
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        category_filter = st.selectbox("Category", ["All", "Solar Energy", "Wind Energy", "Energy Efficiency", "Green Buildings"])
+    with col2:
+        risk_filter = st.selectbox("Risk Level", ["All", "Low", "Medium", "High"])
+    with col3:
+        min_investment = st.number_input("Min Investment ($M)", min_value=0, max_value=100, value=0)
+    with col4:
+        location_filter = st.text_input("Location", placeholder="Filter by location")
+    
+    # Apply filters
+    filtered_projects = st.session_state.projects
+    if category_filter != "All":
+        filtered_projects = [p for p in filtered_projects if p['category'] == category_filter]
+    if risk_filter != "All":
+        filtered_projects = [p for p in filtered_projects if p['risk_category'] == risk_filter]
+    if min_investment > 0:
+        filtered_projects = [p for p in filtered_projects if p['min_investment'] >= min_investment]
+    if location_filter:
+        filtered_projects = [p for p in filtered_projects if location_filter.lower() in p['location'].lower()]
+    
+    # Display projects
+    st.markdown(f"### 📋 Available Projects ({len(filtered_projects)})")
+    
+    for project in filtered_projects:
+        with st.expander(f"🌱 {project['name']} - ${project['investment_required']}M Required"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"**Project ID:** {project['id']}")
+                st.markdown(f"**Category:** {project['category']}")
+                st.markdown(f"**Location:** {project['location']}")
+                st.markdown(f"**Status:** {project['status']}")
+                st.markdown(f"**Verification:** {project['verification_status']}")
+            
+            with col2:
+                st.markdown(f"**Expected Return:** {project['expected_return']}%")
+                st.markdown(f"**Risk Score:** {project['risk_score']}/5.0")
+                st.markdown(f"**ESG Score:** {project['esg_score']}/100")
+                st.markdown(f"**Maturity:** {project['maturity']}")
+                st.markdown(f"**Min Investment:** ${project['min_investment']}M")
+            
+            with col3:
+                st.markdown(f"**Carbon Offset:** {project['carbon_offset']:,.0f} MT/year")
+                st.markdown(f"**First-Loss Coverage:** {project['first_loss_coverage']}%")
+                st.markdown(f"**Govt Backing:** {'Yes' if project['government_backing'] else 'No'}")
+                st.markdown(f"**Currency Hedging:** {'Yes' if project['currency_hedging'] else 'No'}")
+                
+                progress = project['completion'] / 100
+                st.progress(progress)
+                st.caption(f"Funding Progress: {project['completion']}%")
+            
+            # SDG Alignment
+            st.markdown("**SDG Alignment:**")
+            sdg_icons = " ".join([f"🎯 {sdg}" for sdg in project['sdg_alignment']])
+            st.markdown(sdg_icons)
+            
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                if st.button(f"📄 View Details", key=f"detail_{project['id']}"):
+                    st.info(f"Detailed analysis for {project['name']} would be shown here")
+            with col_b:
+                if st.button(f"💰 Invest Now", key=f"invest_{project['id']}"):
+                    st.success(f"Investment process initiated for {project['name']}")
+            with col_c:
+                if st.button(f"📊 Download Report", key=f"report_{project['id']}"):
+                    st.info("Report download initiated")
+
+def render_carbon_trading():
+    """Render Carbon Credit Trading Hub"""
+    st.subheader("🌍 Carbon Credit Trading Hub")
+    
+    # Market Overview
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Carbon Price Index", "$32.45", "+2.3%")
+    with col2:
+        st.metric("Daily Volume", "45,230 tons", "+12%")
+    with col3:
+        st.metric("Active Listings", "234", "+8")
+    with col4:
+        st.metric("Verified Credits", "2.3M tons", "+15%")
+    
+    st.markdown("---")
+    
+    # Trading Interface
+    tab1, tab2, tab3 = st.tabs(["🛒 Buy Credits", "💰 Sell Credits", "📊 Market Analysis"])
+    
+    with tab1:
+        st.markdown("### Available Carbon Credits")
+        
+        credits = [
+            {"type": "Solar RECs", "volume": 5000, "price": 28.50, "verification": "Gold Standard", "location": "Gujarat"},
+            {"type": "Wind RECs", "volume": 3200, "price": 26.75, "verification": "VCS", "location": "Tamil Nadu"},
+            {"type": "Forest Conservation", "volume": 15000, "price": 35.20, "verification": "CAR", "location": "Karnataka"},
+            {"type": "Energy Efficiency", "volume": 8700, "price": 22.80, "verification": "CDM", "location": "Maharashtra"},
+        ]
+        
+        for credit in credits:
+            with st.container():
+                col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+                with col1:
+                    st.markdown(f"**{credit['type']}**")
+                    st.caption(f"Verification: {credit['verification']} | Location: {credit['location']}")
+                with col2:
+                    st.metric("Price", f"${credit['price']}/ton")
+                with col3:
+                    st.metric("Available", f"{credit['volume']:,} tons")
+                with col4:
+                    quantity = st.number_input("Quantity", min_value=1, max_value=credit['volume'], 
+                                              value=100, key=f"buy_{credit['type']}")
+                with col5:
+                    if st.button("Buy", key=f"purchase_{credit['type']}"):
+                        total_cost = quantity * credit['price']
+                        st.success(f"Purchase order placed: {quantity} tons for ${total_cost:,.2f}")
+                st.markdown("---")
+    
+    with tab2:
+        st.markdown("### List Your Carbon Credits")
+        
+        with st.form("sell_credits_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                project_name = st.text_input("Project Name")
+                credit_type = st.selectbox("Credit Type", ["Solar RECs", "Wind RECs", "Forest Conservation", "Energy Efficiency"])
+                verification = st.selectbox("Verification Standard", ["Gold Standard", "VCS", "CDM", "CAR"])
+            with col2:
+                quantity = st.number_input("Quantity (tons)", min_value=1, value=1000)
+                price = st.number_input("Price per ton ($)", min_value=1.0, value=25.0)
+                vintage_year = st.number_input("Vintage Year", min_value=2020, max_value=2025, value=2024)
+            
+            documentation = st.file_uploader("Upload Verification Documents", type=['pdf', 'doc', 'docx'])
+            
+            if st.form_submit_button("List Credits"):
+                st.success(f"Successfully listed {quantity} tons of {credit_type} credits at ${price}/ton")
+    
+    with tab3:
+        st.markdown("### Market Analysis")
+        
+        # Price trends
+        dates = pd.date_range(start='2024-01-01', periods=12, freq='M')
+        prices = [25.0, 26.2, 27.8, 28.5, 29.1, 30.4, 31.2, 30.8, 31.5, 32.1, 32.9, 33.5]
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=dates, y=prices, mode='lines+markers', name='Carbon Price',
+                                line=dict(color='#1976D2', width=2)))
+        fig.update_layout(title="Carbon Credit Price Trends", xaxis_title="Date", 
+                         yaxis_title="Price ($/ton)", height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+def render_sidebar():
+    """Render sidebar navigation"""
+    with st.sidebar:
+        st.markdown("## 🌱 GREENSTRIKAS")
+        st.markdown(f"**Welcome, {st.session_state.user_display_name}**")
+        st.markdown(f"*{st.session_state.user_type} Account*")
+        st.markdown("---")
+        
+        # Navigation
+        st.markdown("### 📊 Navigation")
+        
+        nav_options = [
+            ("🏠 Dashboard", "Dashboard"),
+            ("🌱 Projects", "Projects"),
+            ("🌍 Carbon Trading", "Carbon Trading"),
+            ("🛡️ De-risking", "De-risking"),
+            ("⛓️ Blockchain", "Blockchain"),
+            ("🤖 AI Advisory", "AI Advisory"),
+            ("🌍 SDG Tracker", "SDG Tracker"),
+            ("📊 Analytics", "Analytics")
+        ]
+        
+        for label, page in nav_options:
+            if st.button(label, use_container_width=True, key=f"nav_{page}"):
+                st.session_state.page = page
+        
+        st.markdown("---")
+        st.markdown("### 🔗 Quick Links")
+        
+        # Quick action buttons
+        if st.button("📈 Market Data", use_container_width=True):
+            st.info("Market data would open here")
+        if st.button("📰 News", use_container_width=True):
+            st.info("Climate finance news would open here")
+        if st.button("🔄 Portfolio", use_container_width=True):
+            st.info("Portfolio management would open here")
+        if st.button("📋 Reports", use_container_width=True):
+            st.info("Report generation would open here")
+        
+        st.markdown("---")
+        st.markdown("### ⚙️ Account")
+        
+        if st.button("🔐 Logout", use_container_width=True):
+            st.session_state.authenticated = False
+            st.session_state.user_type = None
+            st.session_state.username = None
+            st.rerun()
+
+def render_analytics():
+    """Render Analytics Dashboard"""
+    st.subheader("📊 Advanced Analytics & Insights")
+    
+    tab1, tab2, tab3 = st.tabs(["🌍 Climate Impact", "💰 Financial Performance", "⚡ Risk Analytics"])
+    
+    with tab1:
+        st.markdown("### Climate Impact Dashboard")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total CO₂ Reduced", "45.6M MT", "+2.3M MT")
+        with col2:
+            st.metric("Renewable Energy Added", "12.5 GW", "+0.8 GW")
+        with col3:
+            st.metric("Green Jobs Created", "125,000", "+8,500")
+        with col4:
+            st.metric("Water Saved", "850M Liters", "+45M L")
+        
+        # Impact visualization
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            sectors = ["Solar", "Wind", "Energy Efficiency", "Transport", "Waste"]
+            co2_reduction = [35, 28, 20, 12, 5]
+            
+            fig = go.Figure(data=[go.Bar(x=sectors, y=co2_reduction, 
+                                         marker_color=['#FFD700', '#87CEEB', '#90EE90', '#DDA0DD', '#F4A460'])])
+            fig.update_layout(title="CO₂ Reduction by Sector (%)", yaxis_title="Percentage",
+                            xaxis_title="Sector", height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            months = pd.date_range(start='2024-01-01', periods=12, freq='M')
+            impact_data = np.cumsum(np.random.uniform(1000, 5000, 12))
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=months, y=impact_data, mode='lines+markers',
+                                    name='Monthly Impact',
+                                    line=dict(color='#2E7D32', width=3)))
+            fig.update_layout(title="Cumulative Climate Impact", 
+                            yaxis_title="Impact Units",
+                            xaxis_title="Month", height=400)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with tab2:
+        st.markdown("### Financial Performance Analytics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Platform Revenue", "$15.2M", "+23%")
+        with col2:
+            st.metric("Transaction Volume", "$2.3B", "+18%")
+        with col3:
+            st.metric("Average Deal Size", "$45M", "+$5M")
+        with col4:
+            st.metric("Platform Fees", "1.2%", "-0.1%")
+        
+        # Revenue breakdown
+        revenue_streams = ["Transaction Fees", "Management Fees", "Carry Interest", "Subscriptions", "Verification"]
+        revenue_values = [40, 30, 15, 10, 5]
+        
+        fig = px.pie(values=revenue_values, names=revenue_streams, 
+                    title="Revenue Stream Breakdown",
+                    hole=0.4)
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with tab3:
+        st.markdown("### Risk Analytics Dashboard")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Portfolio VaR (95%)", "$12.3M", "-$0.8M", delta_color="inverse")
+        with col2:
+            st.metric("Default Rate", "0.8%", "-0.2%", delta_color="inverse")
+        with col3:
+            st.metric("Liquidity Ratio", "2.3x", "+0.1x")
+        with col4:
+            st.metric("Currency Exposure", "15%", "-2%", delta_color="inverse")
+        
+        # Risk matrix
+        st.markdown("### Risk Heat Map")
+        
+        risk_categories = ["Credit Risk", "Market Risk", "Operational Risk", "Regulatory Risk"]
+        projects = ["Project A", "Project B", "Project C", "Project D"]
+        
+        risk_matrix = np.random.uniform(1, 5, (4, 4))
+        
+        fig = px.imshow(risk_matrix, 
+                       labels=dict(x="Projects", y="Risk Categories", color="Risk Score"),
+                       x=projects, y=risk_categories,
+                       color_continuous_scale="RdYlGn_r",
+                       aspect="auto")
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+# Complete the login function that was cut off
+def render_advanced_login():
+    """Render enhanced login page"""
+    st.markdown("""
+    <div class="main-header">
+        <h1 style="margin: 0;">🌱 Welcome to GREENSTRIKAS</h1>
+        <p style="margin: 0.5rem 0 0 0;">Transforming Climate Finance Through Innovation</p>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.9;">
+            Integrated Climate Finance Ecosystem | Blockchain Secured | AI Powered
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("### 🔐 Sign In to Your Account")
+        
+        with st.form("login_form"):
+            username = st.text_input("👤 Username", placeholder="Enter your username")
+            password = st.text_input("🔒 Password", type="password", placeholder="Enter your password")
+            user_type = st.selectbox("🎯 Account Type", ["Investor", "Developer", "Government", "Admin"])
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                submit = st.form_submit_button("🚀 Sign In", use_container_width=True)
+            with col_b:
+                demo = st.form_submit_button("👁️ Demo Access", use_container_width=True)
+            
+            if submit:
+                if authenticate_user(username, password, user_type):
+                    st.success(f"Welcome back, {st.session_state.user_display_name}!")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials. Please try again.")
+            
+            if demo:
+                if authenticate_user('demo', 'demo123', 'Investor'):
+                    st.success("Logged in with demo account!")
+                    st.rerun()
+        
+        st.markdown("---")
+        st.markdown("#### 🎯 Demo Credentials")
+        st.info("""
+        **Username:** demo  
+        **Password:** demo123  
+        **Type:** Investor
+        
+        *Explore all platform features with demo access*
+        """)
+        # Main Application Controller
+def main():
+    """Main application controller"""
+    
+    # Check authentication
+    if not st.session_state.authenticated:
+        render_advanced_login()
+        return
+    
+    # Render sidebar navigation
+    render_sidebar()
+    
+    # Page routing
+    if st.session_state.page == "Dashboard":
+        render_dashboard()
+    elif st.session_state.page == "Projects":
+        render_projects()
+    elif st.session_state.page == "Carbon Trading":
+        render_carbon_trading()
+    elif st.session_state.page == "De-risking":
+        render_government_derisking()
+    elif st.session_state.page == "Blockchain":
+        render_blockchain_verification()
+    elif st.session_state.page == "AI Advisory":
+        render_ai_advisory()
+    elif st.session_state.page == "SDG Tracker":
+        render_sdg_tracker()
+    elif st.session_state.page == "Analytics":
+        render_analytics()
+    else:
+        render_dashboard()
+
+# Run the application
+if __name__ == "__main__":
+    main()
