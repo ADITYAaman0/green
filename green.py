@@ -348,7 +348,6 @@ def simulate_send_password_reset_email(email, token):
     return True, f"Password reset email sent to {email}. Use token: {token}"
 
 # Real Email Sending Functions (Uncomment and configure for production)
-"""
 def send_verification_email(email, token):
     try:
         msg = MIMEMultipart()
@@ -418,7 +417,6 @@ def send_password_reset_email(email, token):
         
     except Exception as e:
         return False, f"Failed to send email: {str(e)}"
-"""
 
 # Validation Functions
 def validate_email(email):
