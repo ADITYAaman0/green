@@ -195,6 +195,37 @@ st.markdown("""
         text-align: center;
         margin: 1rem 0;
     }
+    
+    /* Watchlist and Portfolio Cards */
+    .portfolio-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 5px solid #1976D2;
+        margin-bottom: 1rem;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .portfolio-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    
+    .watchlist-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 5px solid #FF9800;
+        margin-bottom: 1rem;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .watchlist-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -229,6 +260,14 @@ if 'show_password_reset' not in st.session_state:
     st.session_state.show_password_reset = False
 if 'show_verification' not in st.session_state:
     st.session_state.show_verification = False
+
+# NEW: Initialize Watchlist and Portfolio features
+if 'user_watchlists' not in st.session_state:
+    st.session_state.user_watchlists = {}
+if 'user_portfolios' not in st.session_state:
+    st.session_state.user_portfolios = {}
+if 'user_transactions' not in st.session_state:
+    st.session_state.user_transactions = {}
 
 # Email Configuration (Update these with your email service details)
 EMAIL_CONFIG = {
@@ -275,7 +314,10 @@ def generate_advanced_mock_projects():
             'government_backing': random.choice([True, False]),
             'technology_readiness': random.choice(['Early Stage', 'Proven', 'Commercial']),
             'sdg_alignment': random.sample([1, 3, 7, 8, 9, 11, 12, 13], random.randint(3, 6)),
-            'blockchain_hash': hashlib.sha256(f"project{1000+i}".encode()).hexdigest()[:16]
+            'blockchain_hash': hashlib.sha256(f"project{1000+i}".encode()).hexdigest()[:16],
+            'current_valuation': round(random.uniform(15, 250), 2),  # Current valuation in $M
+            'valuation_change': round(random.uniform(-5, 15), 2),   # Valuation change in %
+            'dividend_yield': round(random.uniform(2, 8), 2)        # Dividend yield in %
         }
         projects.append(project)
     return projects
@@ -309,6 +351,182 @@ def generate_ai_insights():
         "📊 Predictive model indicates 12.8% average returns for Q1 2025"
     ]
     return insights
+
+# NEW: Portfolio and Watchlist Functions
+def initialize_user_portfolio(username):
+    """Initialize portfolio for a new user"""
+    if username not in st.session_state.user_portfolios:
+        st.session_state.user_portfolios[username] = {
+            'total_value': 0.0,
+            'total_invested': 0.0,
+            'total_returns': 0.0,
+            'holdings': [],
+            'performance_history': []
+        }
+
+def initialize_user_watchlist(username):
+    """Initialize watchlist for a new user"""
+    if username not in st.session_state.user_watchlists:
+        st.session_state.user_watchlists[username] = []
+
+def initialize_user_transactions(username):
+    """Initialize transactions for a new user"""
+    if username not in st.session_state.user_transactions:
+        st.session_state.user_transactions[username] = []
+
+def add_to_watchlist(username, project_id):
+    """Add a project to user's watchlist"""
+    if username not in st.session_state.user_watchlists:
+        initialize_user_watchlist(username)
+    
+    if project_id not in st.session_state.user_watchlists[username]:
+        st.session_state.user_watchlists[username].append(project_id)
+        return True
+    return False
+
+def remove_from_watchlist(username, project_id):
+    """Remove a project from user's watchlist"""
+    if username in st.session_state.user_watchlists:
+        if project_id in st.session_state.user_watchlists[username]:
+            st.session_state.user_watchlists[username].remove(project_id)
+            return True
+    return False
+
+def invest_in_project(username, project_id, amount, investment_date=None):
+    """Simulate investment in a project"""
+    if investment_date is None:
+        investment_date = datetime.now()
+    
+    # Find the project
+    project = next((p for p in st.session_state.projects if p['id'] == project_id), None)
+    if not project:
+        return False, "Project not found"
+    
+    if amount < project['min_investment']:
+        return False, f"Minimum investment is ${project['min_investment']}M"
+    
+    # Initialize user portfolio if not exists
+    initialize_user_portfolio(username)
+    initialize_user_transactions(username)
+    
+    # Create transaction
+    transaction_id = f"TXN{random.randint(10000, 99999)}"
+    transaction = {
+        'id': transaction_id,
+        'project_id': project_id,
+        'project_name': project['name'],
+        'type': 'INVESTMENT',
+        'amount': amount,
+        'date': investment_date,
+        'status': 'COMPLETED',
+        'units': amount / project['min_investment'],  # Simplified unit calculation
+        'price_per_unit': project['min_investment']
+    }
+    
+    # Add to transactions
+    st.session_state.user_transactions[username].append(transaction)
+    
+    # Update portfolio
+    portfolio = st.session_state.user_portfolios[username]
+    
+    # Check if already holding this project
+    existing_holding = next((h for h in portfolio['holdings'] if h['project_id'] == project_id), None)
+    
+    if existing_holding:
+        # Update existing holding
+        existing_holding['investment_amount'] += amount
+        existing_holding['units'] += transaction['units']
+        existing_holding['current_value'] = existing_holding['units'] * project['current_valuation']
+        existing_holding['last_updated'] = datetime.now()
+    else:
+        # Create new holding
+        holding = {
+            'project_id': project_id,
+            'project_name': project['name'],
+            'category': project['category'],
+            'investment_date': investment_date,
+            'investment_amount': amount,
+            'units': transaction['units'],
+            'current_value': transaction['units'] * project['current_valuation'],
+            'expected_return': project['expected_return'],
+            'risk_category': project['risk_category'],
+            'current_valuation': project['current_valuation'],
+            'valuation_change': project['valuation_change'],
+            'last_updated': datetime.now()
+        }
+        portfolio['holdings'].append(holding)
+    
+    # Update portfolio totals
+    portfolio['total_invested'] = sum(h['investment_amount'] for h in portfolio['holdings'])
+    portfolio['total_value'] = sum(h['current_value'] for h in portfolio['holdings'])
+    portfolio['total_returns'] = portfolio['total_value'] - portfolio['total_invested']
+    
+    # Add performance snapshot
+    performance_snapshot = {
+        'date': datetime.now(),
+        'total_value': portfolio['total_value'],
+        'total_invested': portfolio['total_invested'],
+        'total_returns': portfolio['total_returns']
+    }
+    portfolio['performance_history'].append(performance_snapshot)
+    
+    return True, f"Successfully invested ${amount}M in {project['name']}"
+
+def sell_investment(username, project_id, units_to_sell):
+    """Sell units of a project investment"""
+    portfolio = st.session_state.user_portfolios.get(username)
+    if not portfolio:
+        return False, "No portfolio found"
+    
+    # Find the holding
+    holding = next((h for h in portfolio['holdings'] if h['project_id'] == project_id), None)
+    if not holding:
+        return False, "Investment not found in portfolio"
+    
+    if units_to_sell > holding['units']:
+        return False, f"Not enough units. You have {holding['units']} units"
+    
+    # Find project for current valuation
+    project = next((p for p in st.session_state.projects if p['id'] == project_id), None)
+    if not project:
+        return False, "Project not found"
+    
+    # Calculate sale amount
+    sale_amount = units_to_sell * project['current_valuation']
+    
+    # Create sell transaction
+    transaction_id = f"TXN{random.randint(10000, 99999)}"
+    transaction = {
+        'id': transaction_id,
+        'project_id': project_id,
+        'project_name': project['name'],
+        'type': 'SALE',
+        'amount': sale_amount,
+        'units': units_to_sell,
+        'date': datetime.now(),
+        'status': 'COMPLETED',
+        'price_per_unit': project['current_valuation']
+    }
+    
+    st.session_state.user_transactions[username].append(transaction)
+    
+    # Update holding
+    if units_to_sell == holding['units']:
+        # Remove entire holding
+        portfolio['holdings'] = [h for h in portfolio['holdings'] if h['project_id'] != project_id]
+    else:
+        # Partial sale
+        holding['units'] -= units_to_sell
+        holding['investment_amount'] = holding['units'] * holding['price_per_unit']
+        holding['current_value'] = holding['units'] * project['current_valuation']
+        holding['last_updated'] = datetime.now()
+    
+    # Update portfolio totals
+    portfolio['total_invested'] = sum(h['investment_amount'] for h in portfolio['holdings'])
+    portfolio['total_value'] = sum(h['current_value'] for h in portfolio['holdings'])
+    portfolio['total_returns'] = portfolio['total_value'] - portfolio['total_invested']
+    
+    return True, f"Successfully sold {units_to_sell} units for ${sale_amount}M"
 
 # Password Hashing
 def hash_password(password):
@@ -481,6 +699,11 @@ def register_user(username, email, password, user_type, full_name, organization)
         'last_login': None
     }
     
+    # Initialize user's portfolio and watchlist
+    initialize_user_portfolio(username)
+    initialize_user_watchlist(username)
+    initialize_user_transactions(username)
+    
     # Generate verification token and send email
     verification_token = generate_verification_token()
     success, message = simulate_send_verification_email(email, verification_token)
@@ -582,6 +805,10 @@ def authenticate_user(username: str, password: str) -> bool:
         st.session_state.user_display_name = mock_users[username]['name']
         
         # Initialize user-specific data
+        initialize_user_portfolio(username)
+        initialize_user_watchlist(username)
+        initialize_user_transactions(username)
+        
         if st.session_state.user_type == "Investor":
             st.session_state.portfolio_value = random.uniform(50000, 5000000)
             st.session_state.risk_tolerance = random.choice(['Low', 'Medium', 'High'])
@@ -604,6 +831,10 @@ def authenticate_user(username: str, password: str) -> bool:
             user_data['last_login'] = datetime.now()
             
             # Initialize user-specific data
+            initialize_user_portfolio(username)
+            initialize_user_watchlist(username)
+            initialize_user_transactions(username)
+            
             if st.session_state.user_type == "Investor":
                 st.session_state.portfolio_value = random.uniform(50000, 5000000)
                 st.session_state.risk_tolerance = random.choice(['Low', 'Medium', 'High'])
@@ -611,6 +842,259 @@ def authenticate_user(username: str, password: str) -> bool:
             return True
     
     return False
+
+# NEW: Watchlist and Portfolio Rendering Functions
+def render_watchlist():
+    """Render user's watchlist"""
+    st.subheader("⭐ My Watchlist")
+    
+    username = st.session_state.username
+    if username not in st.session_state.user_watchlists or not st.session_state.user_watchlists[username]:
+        st.info("Your watchlist is empty. Browse projects and add them to your watchlist to track them here.")
+        return
+    
+    watchlist_projects = []
+    for project_id in st.session_state.user_watchlists[username]:
+        project = next((p for p in st.session_state.projects if p['id'] == project_id), None)
+        if project:
+            watchlist_projects.append(project)
+    
+    if not watchlist_projects:
+        st.info("No projects found in your watchlist.")
+        return
+    
+    st.markdown(f"### 📋 Watched Projects ({len(watchlist_projects)})")
+    
+    for project in watchlist_projects:
+        with st.expander(f"⭐ {project['name']} - ${project['investment_required']}M Required"):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown(f"**Project ID:** {project['id']}")
+                st.markdown(f"**Category:** {project['category']}")
+                st.markdown(f"**Location:** {project['location']}")
+                st.markdown(f"**Status:** {project['status']}")
+            
+            with col2:
+                st.markdown(f"**Expected Return:** {project['expected_return']}%")
+                st.markdown(f"**Risk Score:** {project['risk_score']}/5.0")
+                st.markdown(f"**ESG Score:** {project['esg_score']}/100")
+                st.markdown(f"**Current Valuation:** ${project['current_valuation']}M")
+            
+            with col3:
+                st.markdown(f"**Valuation Change:** {project['valuation_change']}%")
+                st.markdown(f"**Dividend Yield:** {project['dividend_yield']}%")
+                st.markdown(f"**Min Investment:** ${project['min_investment']}M")
+                
+                progress = project['completion'] / 100
+                st.progress(progress)
+                st.caption(f"Funding Progress: {project['completion']}%")
+            
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                if st.button(f"📄 View Details", key=f"detail_watch_{project['id']}"):
+                    st.info(f"Detailed analysis for {project['name']}")
+            with col_b:
+                # Quick invest button
+                investment_amount = st.number_input(
+                    f"Investment Amount ($M)", 
+                    min_value=project['min_investment'], 
+                    value=project['min_investment'],
+                    key=f"invest_{project['id']}"
+                )
+                if st.button(f"💰 Invest Now", key=f"invest_btn_{project['id']}"):
+                    success, message = invest_in_project(username, project['id'], investment_amount)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+            with col_c:
+                if st.button(f"🗑️ Remove", key=f"remove_{project['id']}"):
+                    if remove_from_watchlist(username, project['id']):
+                        st.success(f"Removed {project['name']} from watchlist")
+                        st.rerun()
+                    else:
+                        st.error("Failed to remove from watchlist")
+
+def render_portfolio():
+    """Render user's portfolio dashboard"""
+    st.subheader("💼 My Portfolio")
+    
+    username = st.session_state.username
+    portfolio = st.session_state.user_portfolios.get(username, {})
+    transactions = st.session_state.user_transactions.get(username, [])
+    
+    if not portfolio or not portfolio.get('holdings'):
+        st.info("""
+        Your portfolio is empty. Start building your climate investment portfolio by:
+        1. Browsing projects in the Projects section
+        2. Adding interesting projects to your watchlist
+        3. Making investments in projects that match your investment goals
+        """)
+        return
+    
+    # Portfolio Overview
+    st.markdown("### 📊 Portfolio Overview")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            "Total Portfolio Value", 
+            f"${portfolio['total_value']:,.2f}M",
+            f"${portfolio['total_returns']:,.2f}M"
+        )
+    with col2:
+        st.metric("Total Invested", f"${portfolio['total_invested']:,.2f}M")
+    with col3:
+        return_percentage = (portfolio['total_returns'] / portfolio['total_invested'] * 100) if portfolio['total_invested'] > 0 else 0
+        st.metric("Total Returns", f"${portfolio['total_returns']:,.2f}M", f"{return_percentage:.2f}%")
+    with col4:
+        st.metric("Number of Holdings", len(portfolio['holdings']))
+    
+    st.markdown("---")
+    
+    # Portfolio Performance Chart
+    st.markdown("### 📈 Portfolio Performance")
+    
+    if portfolio.get('performance_history'):
+        performance_df = pd.DataFrame(portfolio['performance_history'])
+        performance_df['date'] = pd.to_datetime(performance_df['date'])
+        performance_df = performance_df.sort_values('date')
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=performance_df['date'],
+            y=performance_df['total_value'],
+            mode='lines+markers',
+            name='Portfolio Value',
+            line=dict(color='#2E7D32', width=3)
+        ))
+        fig.add_trace(go.Scatter(
+            x=performance_df['date'],
+            y=performance_df['total_invested'],
+            mode='lines',
+            name='Total Invested',
+            line=dict(color='#FF6B6B', width=2, dash='dash')
+        ))
+        
+        fig.update_layout(
+            title="Portfolio Value Over Time",
+            xaxis_title="Date",
+            yaxis_title="Value ($M)",
+            height=400,
+            showlegend=True
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Holdings Breakdown
+    st.markdown("### 🏦 Current Holdings")
+    
+    for holding in portfolio['holdings']:
+        project = next((p for p in st.session_state.projects if p['id'] == holding['project_id']), None)
+        if not project:
+            continue
+            
+        current_return = holding['current_value'] - holding['investment_amount']
+        return_percentage = (current_return / holding['investment_amount'] * 100) if holding['investment_amount'] > 0 else 0
+        
+        st.markdown(f"""
+        <div class="portfolio-card">
+            <div style="display: flex; justify-content: between; align-items: center;">
+                <div style="flex: 1;">
+                    <h4>{holding['project_name']}</h4>
+                    <p><strong>Category:</strong> {holding['category']} | <strong>Risk:</strong> {holding['risk_category']}</p>
+                </div>
+                <div style="text-align: right;">
+                    <h4>${holding['current_value']:,.2f}M</h4>
+                    <p style="color: {'#2E7D32' if return_percentage >= 0 else '#F44336'}">
+                        {return_percentage:+.2f}% (${current_return:+.2f}M)
+                    </p>
+                </div>
+            </div>
+            <div style="margin-top: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div>
+                        <strong>Invested:</strong><br>${holding['investment_amount']:,.2f}M
+                    </div>
+                    <div>
+                        <strong>Units:</strong><br>{holding['units']:,.2f}
+                    </div>
+                    <div>
+                        <strong>Current Value:</strong><br>${holding['current_value']:,.2f}M
+                    </div>
+                    <div>
+                        <strong>Expected Return:</strong><br>{holding['expected_return']}%
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Action buttons for each holding
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button(f"📊 View Project", key=f"view_{holding['project_id']}"):
+                st.info(f"Viewing details for {holding['project_name']}")
+        with col2:
+            # Add to watchlist if not already there
+            if holding['project_id'] not in st.session_state.user_watchlists.get(username, []):
+                if st.button(f"⭐ Add to Watchlist", key=f"watch_{holding['project_id']}"):
+                    if add_to_watchlist(username, holding['project_id']):
+                        st.success(f"Added {holding['project_name']} to watchlist")
+                        st.rerun()
+            else:
+                st.button(f"✅ In Watchlist", key=f"watching_{holding['project_id']}", disabled=True)
+        with col3:
+            # Sell option
+            max_units = holding['units']
+            units_to_sell = st.number_input(
+                "Units to Sell", 
+                min_value=0.1, 
+                max_value=float(max_units), 
+                value=float(min(1.0, max_units)),
+                step=0.1,
+                key=f"sell_{holding['project_id']}"
+            )
+            if st.button(f"💸 Sell", key=f"sell_btn_{holding['project_id']}"):
+                success, message = sell_investment(username, holding['project_id'], units_to_sell)
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+        
+        st.markdown("---")
+    
+    # Transaction History
+    st.markdown("### 📋 Transaction History")
+    
+    if transactions:
+        # Sort transactions by date (newest first)
+        sorted_transactions = sorted(transactions, key=lambda x: x['date'], reverse=True)
+        
+        for transaction in sorted_transactions[:10]:  # Show last 10 transactions
+            transaction_type_color = "#2E7D32" if transaction['type'] == 'INVESTMENT' else "#1976D2"
+            transaction_icon = "📥" if transaction['type'] == 'INVESTMENT' else "📤"
+            
+            st.markdown(f"""
+            <div style="background: #F8F9FA; padding: 1rem; border-radius: 8px; margin: 0.5rem 0; border-left: 4px solid {transaction_type_color}">
+                <div style="display: flex; justify-content: between; align-items: center;">
+                    <div style="flex: 1;">
+                        <strong>{transaction_icon} {transaction['type']}</strong><br>
+                        {transaction['project_name']}<br>
+                        <small>Transaction ID: {transaction['id']}</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>${transaction['amount']:,.2f}M</strong><br>
+                        <small>{transaction['units']:,.2f} units</small><br>
+                        <small>{transaction['date'].strftime('%Y-%m-%d %H:%M')}</small>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No transactions yet. Your investment history will appear here.")
 
 # Registration Form
 def render_registration_form():
@@ -1522,6 +2006,24 @@ def render_dashboard():
     
     st.markdown("---")
     
+    # Quick Portfolio Summary (if user has investments)
+    username = st.session_state.username
+    portfolio = st.session_state.user_portfolios.get(username, {})
+    
+    if portfolio and portfolio.get('holdings'):
+        st.markdown("### 💼 Portfolio Snapshot")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Portfolio Value", f"${portfolio['total_value']:,.2f}M")
+        with col2:
+            st.metric("Total Invested", f"${portfolio['total_invested']:,.2f}M")
+        with col3:
+            return_percentage = (portfolio['total_returns'] / portfolio['total_invested'] * 100) if portfolio['total_invested'] > 0 else 0
+            st.metric("Total Returns", f"${portfolio['total_returns']:,.2f}M", f"{return_percentage:.2f}%")
+        with col4:
+            st.metric("Active Holdings", len(portfolio['holdings']))
+    
     # Market Overview
     col1, col2 = st.columns([2, 1])
     
@@ -1582,6 +2084,10 @@ def render_dashboard():
             st.session_state.page = "Analytics"
         if st.button("🛡️ De-risking", use_container_width=True):
             st.session_state.page = "De-risking"
+        if st.button("⭐ Watchlist", use_container_width=True):
+            st.session_state.page = "Watchlist"
+        if st.button("💼 Portfolio", use_container_width=True):
+            st.session_state.page = "Portfolio"
     
     # Recent Activity Feed
     st.markdown("---")
@@ -1657,6 +2163,8 @@ def render_projects():
                 st.markdown(f"**First-Loss Coverage:** {project['first_loss_coverage']}%")
                 st.markdown(f"**Govt Backing:** {'Yes' if project['government_backing'] else 'No'}")
                 st.markdown(f"**Currency Hedging:** {'Yes' if project['currency_hedging'] else 'No'}")
+                st.markdown(f"**Current Valuation:** ${project['current_valuation']}M")
+                st.markdown(f"**Valuation Change:** {project['valuation_change']}%")
                 
                 progress = project['completion'] / 100
                 st.progress(progress)
@@ -1667,14 +2175,39 @@ def render_projects():
             sdg_icons = " ".join([f"🎯 {sdg}" for sdg in project['sdg_alignment']])
             st.markdown(sdg_icons)
             
-            col_a, col_b, col_c = st.columns(3)
+            col_a, col_b, col_c, col_d = st.columns(4)
             with col_a:
                 if st.button(f"📄 View Details", key=f"detail_{project['id']}"):
                     st.info(f"Detailed analysis for {project['name']} would be shown here")
             with col_b:
-                if st.button(f"💰 Invest Now", key=f"invest_{project['id']}"):
-                    st.success(f"Investment process initiated for {project['name']}")
+                # Investment button
+                investment_amount = st.number_input(
+                    f"Amount ($M)", 
+                    min_value=project['min_investment'], 
+                    value=project['min_investment'],
+                    key=f"invest_{project['id']}"
+                )
+                if st.button(f"💰 Invest", key=f"invest_btn_{project['id']}"):
+                    success, message = invest_in_project(st.session_state.username, project['id'], investment_amount)
+                    if success:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
             with col_c:
+                # Watchlist button
+                username = st.session_state.username
+                in_watchlist = project['id'] in st.session_state.user_watchlists.get(username, [])
+                
+                if not in_watchlist:
+                    if st.button(f"⭐ Watchlist", key=f"watch_{project['id']}"):
+                        if add_to_watchlist(username, project['id']):
+                            st.success(f"Added {project['name']} to watchlist")
+                            st.rerun()
+                else:
+                    if st.button(f"✅ Watching", key=f"watching_{project['id']}", disabled=True):
+                        pass
+            with col_d:
                 if st.button(f"📊 Download Report", key=f"report_{project['id']}"):
                     st.info("Report download initiated")
 
@@ -1779,7 +2312,9 @@ def render_sidebar():
             ("⛓️ Blockchain", "Blockchain"),
             ("🤖 AI Advisory", "AI Advisory"),
             ("🌍 SDG Tracker", "SDG Tracker"),
-            ("📊 Analytics", "Analytics")
+            ("📊 Analytics", "Analytics"),
+            ("⭐ Watchlist", "Watchlist"),  # NEW
+            ("💼 Portfolio", "Portfolio")   # NEW
         ]
         
         for label, page in nav_options:
@@ -1795,7 +2330,7 @@ def render_sidebar():
         if st.button("📰 News", use_container_width=True):
             st.info("Climate finance news would open here")
         if st.button("🔄 Portfolio", use_container_width=True):
-            st.info("Portfolio management would open here")
+            st.session_state.page = "Portfolio"
         if st.button("📋 Reports", use_container_width=True):
             st.info("Report generation would open here")
         
@@ -1934,6 +2469,10 @@ def main():
         render_sdg_tracker()
     elif st.session_state.page == "Analytics":
         render_analytics()
+    elif st.session_state.page == "Watchlist":  # NEW
+        render_watchlist()
+    elif st.session_state.page == "Portfolio":  # NEW
+        render_portfolio()
     else:
         render_dashboard()
 
