@@ -12,11 +12,10 @@ import time
 from faker import Faker
 import re
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText  # Fixed: MineText -> MIMEText
+from email.mime.multipart import MIMEMultipart  # Fixed: MimeMultipart -> MIMEMultipart
 import secrets
 import string
-
 # Initialize Faker for realistic data generation
 fake = Faker()
 
